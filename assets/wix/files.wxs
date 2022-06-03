@@ -3138,8 +3138,8 @@
       <Component Id="cmp8A466581FE0540CEB2210C64DA5F970B">
         <File Id="filE75D9761159B495A8DF7A1035E36EF05" KeyPath="yes" Source="$(var.ProductSourcePath)\System.Formats.Tar.dll" />
       </Component>
-      <Component Id="cmp1BCC0D0458494D89B527324A8E131D18">
-        <File Id="fil81CF1F7D16E34E6BAD003EF106FE384A" KeyPath="yes" Source="$(var.ProductSourcePath)\mscordaccore_$(var.FileArchitecture)_$(var.FileArchitecture)_7.0.22.22904.dll" />
+      <Component Id="cmp437AB04F4AC64591A3173AD9434459AC">
+        <File Id="filBA1F5E18BA9F4B088B4A0608ADB28AA1" KeyPath="yes" Source="$(var.ProductSourcePath)\mscordaccore_$(var.FileArchitecture)_$(var.FileArchitecture)_7.0.22.30112.dll" />
       </Component>
     </DirectoryRef>
   </Fragment>
@@ -4148,8 +4148,8 @@
       <ComponentRef Id="cmp0AB1EF494922410AB17DC61097295172" />
       <ComponentRef Id="cmpF735DF855B6A444E8874E7FD15796C37" />
       <ComponentRef Id="cmp8A466581FE0540CEB2210C64DA5F970B" />
-      <ComponentRef Id="cmp1BCC0D0458494D89B527324A8E131D18" />
       <ComponentRef Id="cmp044F67223E6D490D8533691BF50B2B86" />
+      <ComponentRef Id="cmp437AB04F4AC64591A3173AD9434459AC" />
     </ComponentGroup>
   </Fragment>
 </Wix>
