@@ -74,6 +74,14 @@ Describe "TabCompletion" -Tags CI {
         $res.CompletionMatches[0].CompletionText | Should -BeExactly 'pscustomobject'
     }
 
+    foreach ($Operator in [System.Management.Automation.CompletionCompleters]::CompleteOperator(""))
+    {
+        It "Should complete $($Operator.CompletionText)" {
+            $res = TabExpansion2 -inputScript "'' $($Operator.CompletionText)" -cursorColumn ($Operator.CompletionText.Length + 3)
+            $res.CompletionMatches[0].CompletionText | Should -BeExactly $Operator.CompletionText
+        }
+    }
+
     It '<Intent>' -TestCases @(
         @{
             Intent = 'Complete member with space between dot and cursor'
@@ -822,6 +830,26 @@ switch ($x)
             $expected = ($expected | Sort-Object -CaseSensitive | ForEach-Object { "./$_" }) -join ":"
 
         }
+
+        It "PSScriptRoot path completion when AST extent has file identity" {
+            $scriptText = '"$PSScriptRoot\BugFix.Tests"'
+            $tokens = $null
+            $scriptAst = [System.Management.Automation.Language.Parser]::ParseInput(
+                $scriptText,
+                $PSCommandPath,
+                [ref] $tokens,
+                [ref] $null)
+
+            $cursorPosition = $scriptAst.Extent.StartScriptPosition.
+                GetType().
+                GetMethod('CloneWithNewOffset', [System.Reflection.BindingFlags]'NonPublic, Instance').
+                Invoke($scriptAst.Extent.StartScriptPosition, @($scriptText.Length - 1))
+
+            $res = TabExpansion2 -ast $scriptAst -tokens $tokens -positionOfCursor $cursorPosition
+            $res.CompletionMatches | Should -HaveCount 1
+            $expectedPath = Join-Path $PSScriptRoot -ChildPath BugFix.Tests.ps1
+            $res.CompletionMatches[0].CompletionText | Should -Be "`"$expectedPath`""
+        }
     }
 
     Context "Cmdlet name completion" {
@@ -877,7 +905,7 @@ switch ($x)
                 @{ inputStr = '[math].G'; expected = 'GenericParameterAttributes'; setup = $null }
                 @{ inputStr = '[Environment+specialfolder]::App'; expected = 'ApplicationData'; setup = $null }
                 @{ inputStr = 'icm {get-pro'; expected = 'Get-Process'; setup = $null }
-                @{ inputStr = 'write-ouput (get-pro'; expected = 'Get-Process'; setup = $null }
+                @{ inputStr = 'write-output (get-pro'; expected = 'Get-Process'; setup = $null }
                 @{ inputStr = 'iex "get-pro'; expected = '"Get-Process"'; setup = $null }
                 @{ inputStr = '$variab'; expected = '$variableA'; setup = { $variableB = 2; $variableA = 1 } }
                 @{ inputStr = 'a -'; expected = '-keys'; setup = { function a {param($keys) $a} } }
@@ -1143,6 +1171,46 @@ switch ($x)
             $res.CompletionMatches | Should -HaveCount 2
             $res.CompletionMatches[0].CompletionText | Should -BeExactly 'cat'
             $res.CompletionMatches[1].CompletionText | Should -BeExactly 'dog'
+        }
+
+        It "Tab completion for enum members after colon with <Space> space" -TestCases @(
+            @{ Space = 0 }
+            @{ Space = 1 }
+        ) {
+            param ($Space)
+            $inputStr = "Get-Command -Type:$(' ' * $Space)Al"
+            $res = TabExpansion2 -inputScript $inputStr -cursorColumn $inputStr.Length
+            $res.CompletionMatches | Should -HaveCount 2
+            $res.CompletionMatches[0].CompletionText | Should -BeExactly 'Alias'
+            $res.CompletionMatches[1].CompletionText | Should -BeExactly 'All'
+        }
+
+        It "Tab completion for enum members between colon with <LeftSpace> space and <RightSpace> space with value" -TestCases @(
+            @{ LeftSpace = 0; RightSpace = 0 }
+            @{ LeftSpace = 0; RightSpace = 1 }
+            @{ LeftSpace = 1; RightSpace = 0 }
+            @{ LeftSpace = 1; RightSpace = 1 }
+        ) {
+            param ($LeftSpace, $RightSpace)
+            $inputStrEndsWithCursor = "Get-Command -Type:$(' ' * $LeftSpace)"
+            $inputStr = $inputStrEndsWithCursor + "$(' ' * $RightSpace)Alias"
+            $res = TabExpansion2 -inputScript $inputStr -cursorColumn $inputStrEndsWithCursor.Length
+            $expectedArray = [enum]::GetNames([System.Management.Automation.CommandTypes]) | Sort-Object
+            $res.CompletionMatches.CompletionText | Should -Be $expectedArray
+        }
+
+        It "Tab completion for enum members between comma with <LeftSpace> space and <RightSpace> space with parameter" -TestCases @(
+            @{ LeftSpace = 0; RightSpace = 0 }
+            @{ LeftSpace = 0; RightSpace = 1 }
+            @{ LeftSpace = 1; RightSpace = 0 }
+            @{ LeftSpace = 1; RightSpace = 1 }
+        ) {
+            param ($LeftSpace, $RightSpace)
+            $inputStrEndsWithCursor = "Get-Command -Type Alias,$(' ' * $LeftSpace)"
+            $inputStr = $inputStrEndsWithCursor + "$(' ' * $RightSpace)-All"
+            $res = TabExpansion2 -inputScript $inputStr -cursorColumn $inputStrEndsWithCursor.Length
+            $expectedArray = [enum]::GetNames([System.Management.Automation.CommandTypes]) | Sort-Object
+            $res.CompletionMatches.CompletionText | Should -Be $expectedArray
         }
 
         It "Tab completion for enum members after comma" {
@@ -1487,6 +1555,21 @@ dir -Recurse `
             $inputStr = "dir .\commaA.txt,"
             $expected = ".${separator}commaA.txt"
             $res = TabExpansion2 -inputScript $inputStr -cursorColumn $inputStr.Length
+            $res.CompletionMatches | Should -HaveCount 1
+            $res.CompletionMatches[0].CompletionText | Should -BeExactly $expected
+        }
+
+        It "Tab completion for file array element between comma with <LeftSpace> space and <RightSpace> space with parameter" -TestCases @(
+            @{ LeftSpace = 0; RightSpace = 0 }
+            @{ LeftSpace = 0; RightSpace = 1 }
+            @{ LeftSpace = 1; RightSpace = 0 }
+            @{ LeftSpace = 1; RightSpace = 1 }
+        ) {
+            param ($LeftSpace, $RightSpace)
+            $inputStrEndsWithCursor = "dir .\commaA.txt,$(' ' * $LeftSpace)"
+            $inputStr = $inputStrEndsWithCursor + "$(' ' * $RightSpace)-File"
+            $expected = ".${separator}commaA.txt"
+            $res = TabExpansion2 -inputScript $inputStr -cursorColumn $inputStrEndsWithCursor.Length
             $res.CompletionMatches | Should -HaveCount 1
             $res.CompletionMatches[0].CompletionText | Should -BeExactly $expected
         }
