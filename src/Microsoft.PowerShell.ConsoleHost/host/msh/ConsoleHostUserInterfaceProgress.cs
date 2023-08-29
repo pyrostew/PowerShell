@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Management.Automation;
 using System.Management.Automation.Host;
 using System.Threading;
@@ -139,14 +140,22 @@ namespace Microsoft.PowerShell
         void
         PreWrite()
         {
-            _progPane?.Hide();
+            if (_progPane != null)
+            {
+                Debug.Assert(!Monitor.TryEnter(_instanceLock), "Must be locked at this point.");
+                _progPane.Hide();
+            }
         }
 
         private
         void
         PostWrite()
         {
-            _progPane?.Show();
+            if (_progPane != null)
+            {
+                Debug.Assert(!Monitor.TryEnter(_instanceLock), "Must be locked at this point.");
+                _progPane.Show();
+            }
         }
 
         private
@@ -172,14 +181,22 @@ namespace Microsoft.PowerShell
         void
         PreRead()
         {
-            _progPane?.Hide();
+            if (_progPane != null)
+            {
+                Debug.Assert(!Monitor.TryEnter(_instanceLock), "Must be locked at this point.");
+                _progPane.Hide();
+            }
         }
 
         private
         void
         PostRead()
         {
-            _progPane?.Show();
+            if (_progPane != null)
+            {
+                Debug.Assert(!Monitor.TryEnter(_instanceLock), "Must be locked at this point.");
+                _progPane.Show();
+            }
         }
 
         private

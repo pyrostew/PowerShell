@@ -15,6 +15,8 @@ using System.Security;
 using System.Text;
 
 using Dbg = System.Management.Automation.Diagnostics;
+using System.Diagnostics;
+using System.Threading;
 #if !UNIX
 using ConsoleHandle = Microsoft.Win32.SafeHandles.SafeFileHandle;
 #endif
@@ -590,45 +592,49 @@ namespace Microsoft.PowerShell
 
         private void WriteToConsole(ReadOnlySpan<char> value, bool transcribeResult, bool newLine)
         {
-#if !UNIX
-            ConsoleHandle handle = ConsoleControl.GetActiveScreenBufferHandle();
-
-            // Ensure that we're in the proper line-output mode.  We don't lock here as it does not matter if we
-            // attempt to set the mode from multiple threads at once.
-            ConsoleControl.ConsoleModes m = ConsoleControl.GetMode(handle);
-
-            const ConsoleControl.ConsoleModes DesiredMode =
-                ConsoleControl.ConsoleModes.ProcessedOutput
-                | ConsoleControl.ConsoleModes.WrapEndOfLine;
-
-            if ((m & DesiredMode) != DesiredMode)
+            lock (_instanceLock)
             {
-                m |= DesiredMode;
-                ConsoleControl.SetMode(handle, m);
-            }
+#if !UNIX
+                ConsoleHandle handle = ConsoleControl.GetActiveScreenBufferHandle();
+
+                // Ensure that we're in the proper line-output mode.  We don't lock here as it does not matter if we
+                // attempt to set the mode from multiple threads at once.
+                ConsoleControl.ConsoleModes m = ConsoleControl.GetMode(handle);
+
+                const ConsoleControl.ConsoleModes DesiredMode =
+                    ConsoleControl.ConsoleModes.ProcessedOutput
+                    | ConsoleControl.ConsoleModes.WrapEndOfLine;
+
+                if ((m & DesiredMode) != DesiredMode)
+                {
+                    m |= DesiredMode;
+                    ConsoleControl.SetMode(handle, m);
+                }
 #endif
 
-            PreWrite();
+                if(!Monitor.TryEnter(_instanceLock)) Debug.Assert(true, "Should be locked at this point.");
+                PreWrite();
 
-            // This is atomic, so we don't lock here...
+                // This is atomic, so we don't lock here...
 #if !UNIX
-            ConsoleControl.WriteConsole(handle, value, newLine);
+                ConsoleControl.WriteConsole(handle, value, newLine);
 #else
             ConsoleOutWriteHelper(value, newLine);
 #endif
 
-            if (_isInteractiveTestToolListening && Console.IsOutputRedirected)
-            {
-                ConsoleOutWriteHelper(value, newLine);
-            }
+                if (_isInteractiveTestToolListening && Console.IsOutputRedirected)
+                {
+                    ConsoleOutWriteHelper(value, newLine);
+                }
 
-            if (transcribeResult)
-            {
-                PostWrite(value, newLine);
-            }
-            else
-            {
-                PostWrite();
+                if (transcribeResult)
+                {
+                    PostWrite(value, newLine);
+                }
+                else
+                {
+                    PostWrite();
+                }
             }
         }
 

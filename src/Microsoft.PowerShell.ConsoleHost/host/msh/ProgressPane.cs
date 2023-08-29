@@ -57,8 +57,8 @@ namespace Microsoft.PowerShell
         void
         Show()
         {
-            lock (_lock)
-            {
+            //lock (_lock)
+            //{
                 if (!IsShowing)
                 {
                     // Get temporary reference to the progress region since it can be
@@ -158,7 +158,7 @@ namespace Microsoft.PowerShell
                         _rawui.SetBufferContents(_location, tempProgressRegion);
                     }
                 }
-            }
+            //}
         }
 
         /// <summary>
@@ -169,8 +169,8 @@ namespace Microsoft.PowerShell
         void
         Hide()
         {
-            lock (_lock)
-            {
+            //lock (_lock)
+            //{
                 if (IsShowing)
                 {
                     if (ProgressNode.IsMinimalProgressRenderingEnabled())
@@ -207,7 +207,7 @@ namespace Microsoft.PowerShell
                     _savedRegion = null;
                     _rawui.CursorPosition = _savedCursor;
                 }
-            }
+            //}
         }
 
         /// <summary>
